@@ -51,13 +51,13 @@ def execParseJson(command):
     return json.loads(execRaw(command), encoding='UTF-8')
 
 def getCephVolumeNames():
-    return execParseJson('rbd -p ' + args['pool'] + ' --format json ls')
+    return execParseJson('rbd -p ' + args.pool + ' --format json ls')
 
 def cephVolumeExists(volume):
     return volume in getCephVolumeNames()
 
 def getCephSnapshots(volume):
-    return execParseJson('rbd -p ' + args['pool'] + ' snap ls --format json ' + volume)
+    return execParseJson('rbd -p ' + args.pool + ' snap ls --format json ' + volume)
 
 def countPreviousCephSnapsots(volume):
     logMessage('get ceph snapshot count for volume ' + volume, LOGLEVEL_INFO)
@@ -111,10 +111,10 @@ def createCephSnapshot(volume):
     return name
 
 def removeCephSnapshot(volume, snapshot):
-    execRaw('rbd -p ' + args['pool'] + ' snap rm ' + volume + '@' + snapshot)
+    execRaw('rbd -p ' + args.pool + ' snap rm ' + volume + '@' + snapshot)
 
 def getCephVolumeProperties(volume):
-    return execParseJson('rbd -p ' + args['pool'] + ' --format json info ' + volume)
+    return execParseJson('rbd -p ' + args.pool + ' --format json info ' + volume)
 
 def createZfsVolume(volume):
     logMessage('creating ZFS volume ' + volume, LOGLEVEL_INFO)
@@ -125,14 +125,14 @@ def createZfsVolume(volume):
 
 def mapCephVolume(volume):
     logMessage('mapping ceph volume ' + volume, LOGLEVEL_INFO)
-    return execRaw('rbd -p ' + args['pool'] + ' nbd map ' + volume)
+    return execRaw('rbd -p ' + args.pool + ' nbd map ' + volume)
 
 def unmapCephVolume(dev):
     logMessage('unmapping ceph volume ' + dev, LOGLEVEL_INFO)
     return execRaw('rbd nbd unmap ' + dev)
 
 def getSnapshotDelta(volume, snapshot1, snapshot2):
-    return execParseJson('rbd -p ' + args['pool'] + ' --format json diff ' + volume + ' --from-snap ' + snapshot1 + ' --snap ' + snapshot2)
+    return execParseJson('rbd -p ' + args.pool + ' --format json diff ' + volume + ' --from-snap ' + snapshot1 + ' --snap ' + snapshot2)
 
 def compareDeviceSize(dev1, dev2):
     sizeDev1 = execRaw('blockdev --getsize64 ' + dev1)
