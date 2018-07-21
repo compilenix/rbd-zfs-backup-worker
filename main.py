@@ -57,7 +57,7 @@ def cephVolumeExists(volume):
 
 def getCephSnapshots(volume):
     return execParseJson("rbd -p hdd snap ls --format json " + volume)
-    
+
 def countPreviousCephSnapsots(volume):
     logMessage('get ceph snapshot count for volume ' + volume, LOGLEVEL_INFO)
     count = 0
@@ -99,7 +99,7 @@ def getBackupMode():
     else:
         return {'mode': BACKUPMODE_INCREMENTAL, 'base_snapshot': previousCephSnapsotName(args.source)}
 
-def createNewSnapshot(volume):
+def createCephSnapshot(volume):
     logMessage('creating ceph snapshot for volume ' + volume, LOGLEVEL_INFO)
     name = INTERNAL_SNAPSHOT_PREFIX + ''.join([random.choice('0123456789abcdef') for _ in range(8)])
     code = subprocess.call(['rbd', '-p', 'hdd', 'snap', 'create', volume + '@' + name])
@@ -167,11 +167,11 @@ try:
                     break # reached EOF
 
         logMessage('copy finished', LOGLEVEL_INFO)
-        createNewSnapshot(args.source)
+        createCephSnapshot(args.source)
 
     if (mode['mode'] == BACKUPMODE_INCREMENTAL):
         snapshot1 = mode['base_snapshot']
-        snapshot2 = createNewSnapshot(args.source)
+        snapshot2 = createCephSnapshot(args.source)
 
         delta = getSnapshotDelta(args.source, snapshot1, snapshot2)
 
@@ -206,7 +206,7 @@ try:
                     read += len(d)
                     dfh.write(d)
                 totalRead += read
-        
+
         logMessage('copy finished', LOGLEVEL_INFO)
         logMessage('transfered ' + str(totalRead) + ' bytes of data', LOGLEVEL_INFO)
 
