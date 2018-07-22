@@ -8,6 +8,7 @@ parser.add_argument('-v', '--verbose', action="store_true", dest='verbose', defa
 parser.add_argument('-s', '--source', action="store", dest='source', help='the ceph device to backup', type=str, required=True)
 parser.add_argument('-d', '--destination', action="store", dest='destination', help='the zsf device to write into (without /dev/zvol)', type=str, required=True)
 parser.add_argument('-p', '--pool', action="store", dest='pool', help='the ceph storage pool', type=str, required=False, default='hdd')
+parser.add_argument('-fsync', '--flush-sync', action="store_true", dest='fsync', help='transfers ("flushes") all modified data to the disk device', required=False, default=False)
 
 args = parser.parse_args()
 
@@ -183,8 +184,9 @@ try:
                     break # reached EOF
                 read += len(d)
                 dfh.write(d)
-                dfh.flush()
-                os.fsync(dfh.fileno())
+                if args.fsync:
+                    dfh.flush()
+                    os.fsync(dfh.fileno())
 
         logMessage('copy finished', LOGLEVEL_INFO)
         logMessage('transfered ' + sizeof_fmt(read) + ' of ' + sizeof_fmt(size), LOGLEVEL_INFO)
@@ -224,8 +226,9 @@ try:
                     d = sfh.read(s)
                     read += len(d)
                     dfh.write(d)
-                    dfh.flush()
-                    os.fsync(dfh.fileno())
+                    if args.fsync:
+                        dfh.flush()
+                        os.fsync(dfh.fileno())
                 totalRead += read
 
         logMessage('copy finished', LOGLEVEL_INFO)
