@@ -119,6 +119,14 @@ def createCephSnapshot(volume):
 def removeCephSnapshot(volume, snapshot):
     execRaw('rbd -p ' + args.pool + ' snap rm ' + volume + '@' + snapshot)
 
+def createZfsSnapshot(volume):
+    logMessage('creating zfs snapshot for volume ' + volume, LOGLEVEL_INFO)
+    name = INTERNAL_SNAPSHOT_PREFIX + ''.join([random.choice('0123456789abcdef') for _ in range(8)])
+    code = subprocess.call(['zfs', 'snapshot', volume + '@' + name])
+    if (code != 0):
+        raise RuntimeError('error creating zfs snapshot code: ' + str(code))
+    logMessage('zfs snapshot created ' + name, LOGLEVEL_INFO)
+
 def getCephVolumeProperties(volume):
     return execParseJson('rbd -p ' + args.pool + ' --format json info ' + volume)
 
@@ -180,6 +188,7 @@ try:
 
         logMessage('copy finished', LOGLEVEL_INFO)
         logMessage('transfered ' + sizeof_fmt(read) + ' of ' + sizeof_fmt(size), LOGLEVEL_INFO)
+        createZfsSnapshot(args.destination)
 
     if (mode['mode'] == BACKUPMODE_INCREMENTAL):
         compareDeviceSize(sourcePath, destinationPath)
@@ -224,6 +233,7 @@ try:
         logMessage('copy finished', LOGLEVEL_INFO)
         logMessage('transfered ' + sizeof_fmt(totalRead) + ' of ' + sizeof_fmt(size), LOGLEVEL_INFO)
 
+        createZfsSnapshot(args.destination)
         removeCephSnapshot(args.source, snapshot1)
 
 
