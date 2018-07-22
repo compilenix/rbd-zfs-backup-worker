@@ -1,10 +1,11 @@
-import os, sys, argparse, stat, subprocess, json, random
+import os, sys, argparse, stat, subprocess, json, random, traceback
 
 import argparse
 
 parser = argparse.ArgumentParser(description='tool to synchronize ceph and ZFS volumes', usage='python3 main.py -s backup-test -d backup_pool_1/backup_test_destination')
 
 parser.add_argument('-v', '--verbose', action="store_true", dest='verbose', default=False, help='print verbose output')
+parser.add_argument('-vv', '--debug', action="store_true", dest='debug', default=False, help='print debug output')
 parser.add_argument('-s', '--source', action="store", dest='source', help='the ceph device to backup', type=str, required=True)
 parser.add_argument('-d', '--destination', action="store", dest='destination', help='the zsf device to write into (without /dev/zvol)', type=str, required=True)
 parser.add_argument('-p', '--pool', action="store", dest='pool', help='the ceph storage pool', type=str, required=False, default='hdd')
@@ -14,6 +15,7 @@ args = parser.parse_args()
 
 ZFS_DEV_PATH = '/dev/zvol/'
 
+LOGLEVEL_DEBUG = 0
 LOGLEVEL_INFO = 1
 LOGLEVEL_WARN = 2
 
@@ -29,7 +31,11 @@ sourcePath = None
 
 def logMessage(message, level):
     # filter info messages if verbose output is not enabled
-    if ((level <= LOGLEVEL_INFO) and not args.verbose):
+    if ((level <= LOGLEVEL_INFO) and not args.verbose and not args.debug):
+        return
+    if ((level < LOGLEVEL_INFO) and not args.debug):
+        return
+    if ((level == LOGLEVEL_INFO) and not args.verbose or not args.debug):
         return
     else:
         print(message)
@@ -110,6 +116,7 @@ def getBackupMode():
 def createCephSnapshot(volume):
     logMessage('creating ceph snapshot for volume ' + volume, LOGLEVEL_INFO)
     name = INTERNAL_SNAPSHOT_PREFIX + ''.join([random.choice('0123456789abcdef') for _ in range(8)])
+    logMessage('exec command "rbd -p hdd snap create ' + volume + '@' + name + '"', LOGLEVEL_INFO)
     code = subprocess.call(['rbd', '-p', 'hdd', 'snap', 'create', volume + '@' + name])
     if (code != 0):
         raise RuntimeError('error creating ceph snapshot code: ' + str(code))
@@ -123,6 +130,7 @@ def removeCephSnapshot(volume, snapshot):
 def createZfsSnapshot(volume):
     logMessage('creating zfs snapshot for volume ' + volume, LOGLEVEL_INFO)
     name = INTERNAL_SNAPSHOT_PREFIX + ''.join([random.choice('0123456789abcdef') for _ in range(8)])
+    logMessage('exec command "zfs snapshot ' + volume + '@' + name + '"', LOGLEVEL_INFO)
     code = subprocess.call(['zfs', 'snapshot', volume + '@' + name])
     if (code != 0):
         raise RuntimeError('error creating zfs snapshot code: ' + str(code))
@@ -134,6 +142,7 @@ def getCephVolumeProperties(volume):
 def createZfsVolume(volume):
     logMessage('creating ZFS volume ' + volume, LOGLEVEL_INFO)
     props = getCephVolumeProperties(args.source)
+    logMessage('exec command "zfs create -V' + str(props['size']) + ' volume"', LOGLEVEL_INFO)
     code = subprocess.call(['zfs', 'create', '-V'+str(props['size']), volume])
     if (code != 0):
         raise RuntimeError('error creating ZFS volume code: ' + str(code))
@@ -150,8 +159,10 @@ def getCephSnapshotDelta(volume, snapshot1, snapshot2):
     return execParseJson('rbd -p ' + args.pool + ' --format json diff ' + volume + ' --from-snap ' + snapshot1 + ' --snap ' + snapshot2)
 
 def compareDeviceSize(dev1, dev2):
+    logMessage('compare block device size of ' + dev1 + ' and ' + dev2, LOGLEVEL_INFO)
     sizeDev1 = execRaw('blockdev --getsize64 ' + dev1)
     sizeDev2 = execRaw('blockdev --getsize64 ' + dev2)
+    logMessage('source = ' + sizeDev1 + ' (' + sizeof_fmt(int(sizeDev1)) + ') and destination = ' + sizeDev2 + ' (' + sizeof_fmt(int(sizeDev2)) + ')', LOGLEVEL_DEBUG)
     if (sizeDev1 != sizeDev2):
         raise RuntimeError('size mismatch between source and destination ' + sizeDev1 + ' vs ' + sizeDev2)
     return int(sizeDev1)
@@ -173,24 +184,36 @@ try:
         sourcePath = mapCephVolume(args.source + '@' + snapshot)
         size = compareDeviceSize(sourcePath, destinationPath)
 
-        logMessage('beginning full copy : ' + sourcePath + ' to ' + destinationPath, LOGLEVEL_INFO)
+        logMessage('beginning full copy from ' + sourcePath + ' to ' + destinationPath, LOGLEVEL_INFO)
 
         read = 0
         with open(sourcePath, 'rb') as sfh, open(destinationPath, 'wb') as dfh:
+            if (args.debug):
+                logMessage('start copy of ' + str(size) + ' bytes (' + sizeof_fmt(size) + ') with buffer size ' + str(COPY_BLOCKSIZE) + ' (' + sizeof_fmt(COPY_BLOCKSIZE) + ')', LOGLEVEL_DEBUG)
+            else:
+                logMessage('start copy of ' + sizeof_fmt(size) + ' with buffer size ' + sizeof_fmt(COPY_BLOCKSIZE), LOGLEVEL_INFO)
             while (True):
-                logMessage('copy block size = ' + sizeof_fmt(COPY_BLOCKSIZE) + ' transfered ' + sizeof_fmt(read) + ' of ' + sizeof_fmt(size), LOGLEVEL_INFO)
+                if (args.debug):
+                    logMessage('transfered ' + str(read) + ' bytes (' + sizeof_fmt(read) + ') of ' + str(size) + ' bytes (' + sizeof_fmt(size) + ')', LOGLEVEL_DEBUG)
+                else:
+                    logMessage('transfered ' + sizeof_fmt(read) + ' of ' + sizeof_fmt(size), LOGLEVEL_INFO)
                 d = sfh.read(COPY_BLOCKSIZE)
                 if not d:
                     break # reached EOF
                 read += len(d)
                 dfh.write(d)
                 if args.fsync:
+                    if (args.debug):
+                        logMessage('flush and fsync fd ' + str(dfh.fileno()), LOGLEVEL_DEBUG)
                     dfh.flush()
                     os.fsync(dfh.fileno())
 
         logMessage('copy finished', LOGLEVEL_INFO)
-        logMessage('transfered ' + sizeof_fmt(read) + ' of ' + sizeof_fmt(size), LOGLEVEL_INFO)
-        createZfsSnapshot(args.destination)
+        if (args.debug):
+            logMessage('transfered ' + str(read) + ' bytes (' + sizeof_fmt(read) + ') of ' + str(size) + ' bytes (' + sizeof_fmt(size) + ')', LOGLEVEL_DEBUG)
+        else:
+            logMessage('transfered ' + sizeof_fmt(read) + ' of ' + sizeof_fmt(size), LOGLEVEL_INFO)
+        createZfsSnapshot(destinationPath)
 
     if (mode['mode'] == BACKUPMODE_INCREMENTAL):
         snapshot1 = mode['base_snapshot']
@@ -209,32 +232,48 @@ try:
             size += block['length']
 
         with open(sourcePath, 'rb') as sfh, open(destinationPath, 'wb') as dfh:
+            if (args.debug):
+                logMessage('start copy of ' + str(len(delta)) + ' ceph objects resulting in ' + str(size) + ' bytes (' + sizeof_fmt(size) + ')', LOGLEVEL_DEBUG)
+            else:
+                logMessage('start copy of ' + str(len(delta)) + ' ceph objects resulting in ' + sizeof_fmt(size), LOGLEVEL_INFO)
             for block in delta:
-                logMessage('copy block offset = ' + sizeof_fmt(block['offset']) + ' length = ' + sizeof_fmt(block['length']), LOGLEVEL_INFO)
-
-                # seek input and output stream to offset position
-                sfh.seek(block['offset'], 0)
-                dfh.seek(block['offset'], 0)
+                if (args.debug):
+                    logMessage('copy delta block with offset = ' + str(block['offset']) + ' bytes (' + sizeof_fmt(block['offset']) + ') and length = ' + str(block['length']) + ' bytes (' + sizeof_fmt(block['length']) + '). currently transfered ' + str(totalRead) + ' bytes (' + sizeof_fmt(totalRead) + ') of ' + str(size) + ' bytes (' + sizeof_fmt(size) + ')', LOGLEVEL_DEBUG)
+                else:
+                    logMessage('copy delta block with offset = ' + sizeof_fmt(block['offset']) + ' and length = ' + sizeof_fmt(block['length']) + '. currently transfered ' + sizeof_fmt(totalRead) + ' of ' + sizeof_fmt(size), LOGLEVEL_INFO)
 
                 length = block['length']
-
                 read = 0
+
+                # seek input and output stream to offset position
+                if (args.debug):
+                    logMessage('seeking ceph block device to offset ' + str(block['offset']) + ' bytes (' + sizeof_fmt(block['offset']) + ')', LOGLEVEL_DEBUG)
+                sfh.seek(block['offset'], 0)
+                if (args.debug):
+                    logMessage('seeking zfs block device to offset ' + str(block['offset']) + ' bytes (' + sizeof_fmt(block['offset']) + ')', LOGLEVEL_DEBUG)
+                dfh.seek(block['offset'], 0)
 
                 while (read < length):
                     s = min(length - read, COPY_BLOCKSIZE)
-                    logMessage('copy sub block size = ' + sizeof_fmt(s) + ' transfered ' + sizeof_fmt(read) + ' of ' + sizeof_fmt(size), LOGLEVEL_INFO)
                     d = sfh.read(s)
                     read += len(d)
+                    if (args.debug):
+                        logMessage('copy sub block size = ' + str(s) + ' bytes (' + sizeof_fmt(s) + ') transfered ' + read + ' bytes (' + sizeof_fmt(read) + ') of ' + size + ' bytes (' + sizeof_fmt(size) + ')', LOGLEVEL_DEBUG)
                     dfh.write(d)
                     if args.fsync:
+                        if (args.debug):
+                            logMessage('flush and fsync fd ' + str(dfh.fileno()), LOGLEVEL_DEBUG)
                         dfh.flush()
                         os.fsync(dfh.fileno())
                 totalRead += read
 
         logMessage('copy finished', LOGLEVEL_INFO)
-        logMessage('transfered ' + sizeof_fmt(totalRead) + ' of ' + sizeof_fmt(size), LOGLEVEL_INFO)
+        if (args.debug):
+            logMessage('transfered ' + str(totalRead) + ' bytes (' + sizeof_fmt(totalRead) + ') of ' + str(size) + ' bytes (' + sizeof_fmt(size) + ')', LOGLEVEL_DEBUG)
+        else:
+            logMessage('transfered ' + sizeof_fmt(totalRead) + ' of ' + sizeof_fmt(size), LOGLEVEL_INFO)
 
-        createZfsSnapshot(args.destination)
+        createZfsSnapshot(destinationPath)
         removeCephSnapshot(args.source, snapshot1)
 
 
@@ -245,6 +284,7 @@ except RuntimeError as e:
     logMessage('runtime exception ' + str(e), LOGLEVEL_WARN)
 
 except Exception as e:
+    traceback.print_exc()
     logMessage('unexpected exception (probably a bug): ' + str(e), LOGLEVEL_WARN)
 
 finally:
