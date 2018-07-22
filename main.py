@@ -165,6 +165,7 @@ try:
                 d = sfh.read(COPY_BLOCKSIZE)
                 dfh.write(d)
                 dfh.flush()
+                os.fsync(dfh.fileno())
                 if (len(d)<COPY_BLOCKSIZE):
                     break # reached EOF
 
@@ -208,6 +209,7 @@ try:
                     read += len(d)
                     dfh.write(d)
                     dfh.flush()
+                    os.fsync(dfh.fileno())
                 totalRead += read
 
         logMessage('copy finished', LOGLEVEL_INFO)
