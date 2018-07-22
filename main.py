@@ -213,7 +213,7 @@ try:
             logMessage('transfered ' + str(read) + ' bytes (' + sizeof_fmt(read) + ') of ' + str(size) + ' bytes (' + sizeof_fmt(size) + ')', LOGLEVEL_DEBUG)
         else:
             logMessage('transfered ' + sizeof_fmt(read) + ' of ' + sizeof_fmt(size), LOGLEVEL_INFO)
-        createZfsSnapshot(destinationPath)
+        createZfsSnapshot(args.destination)
 
     if (mode['mode'] == BACKUPMODE_INCREMENTAL):
         snapshot1 = mode['base_snapshot']
@@ -258,7 +258,7 @@ try:
                     d = sfh.read(s)
                     read += len(d)
                     if (args.debug):
-                        logMessage('copy sub block size = ' + str(s) + ' bytes (' + sizeof_fmt(s) + ') transfered ' + str(read) + ' bytes (' + sizeof_fmt(read) + ') of ' + str(size) + ' bytes (' + sizeof_fmt(size) + ')', LOGLEVEL_DEBUG)
+                        logMessage('copy buffer size = ' + str(s) + ' bytes (' + sizeof_fmt(s) + ') currently ' + str(read) + ' bytes (' + sizeof_fmt(read) + ') of block size ' + str(length) + ' bytes (' + sizeof_fmt(length) + ') transfered', LOGLEVEL_DEBUG)
                     dfh.write(d)
                     if args.fsync:
                         if (args.debug):
@@ -273,7 +273,7 @@ try:
         else:
             logMessage('transfered ' + sizeof_fmt(totalRead) + ' of ' + sizeof_fmt(size), LOGLEVEL_INFO)
 
-        createZfsSnapshot(destinationPath)
+        createZfsSnapshot(args.destination)
         removeCephSnapshot(args.source, snapshot1)
 
 
