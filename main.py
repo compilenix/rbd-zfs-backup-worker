@@ -167,10 +167,10 @@ try:
     destinationPath = ZFS_DEV_PATH + args.destination
 
     if (mode['mode'] == BACKUPMODE_INITIAL):
-        size = compareDeviceSize(sourcePath, destinationPath)
         createZfsVolume(args.destination)
-        snapshot = createCephSnapshot(args.source)
         sourcePath = mapCephVolume(args.source + '@' + snapshot)
+        size = compareDeviceSize(args.source, destinationPath)
+        snapshot = createCephSnapshot(args.source)
 
         logMessage('beginning full copy : ' + sourcePath + ' to ' + destinationPath, LOGLEVEL_INFO)
 
@@ -191,14 +191,13 @@ try:
         createZfsSnapshot(args.destination)
 
     if (mode['mode'] == BACKUPMODE_INCREMENTAL):
-        compareDeviceSize(sourcePath, destinationPath)
-
         snapshot1 = mode['base_snapshot']
         snapshot2 = createCephSnapshot(args.source)
+        sourcePath = mapCephVolume(args.source + '@' + snapshot2)
+
+        compareDeviceSize(args.source, destinationPath)
 
         delta = getCephSnapshotDelta(args.source, snapshot1, snapshot2)
-
-        sourcePath = mapCephVolume(args.source + '@' + snapshot2)
 
         if (len(delta) == 0):
             logMessage('no change', LOGLEVEL_INFO)
