@@ -137,7 +137,7 @@ def unmapCephVolume(dev):
     logMessage('unmapping ceph volume ' + dev, LOGLEVEL_INFO)
     return execRaw('rbd nbd unmap ' + dev)
 
-def getSnapshotDelta(volume, snapshot1, snapshot2):
+def getCephSnapshotDelta(volume, snapshot1, snapshot2):
     return execParseJson('rbd -p ' + args.pool + ' --format json diff ' + volume + ' --from-snap ' + snapshot1 + ' --snap ' + snapshot2)
 
 def compareDeviceSize(dev1, dev2):
@@ -159,9 +159,10 @@ try:
     destinationPath = ZFS_DEV_PATH + args.destination
 
     if (mode['mode'] == BACKUPMODE_INITIAL):
-        createZfsVolume(args.destination)
-        sourcePath = mapCephVolume(args.source)
         size = compareDeviceSize(sourcePath, destinationPath)
+        createZfsVolume(args.destination)
+        snapshot = createCephSnapshot(args.source)
+        sourcePath = mapCephVolume(args.source + '@' + snapshot)
 
         logMessage('beginning full copy : ' + sourcePath + ' to ' + destinationPath, LOGLEVEL_INFO)
 
@@ -179,17 +180,16 @@ try:
 
         logMessage('copy finished', LOGLEVEL_INFO)
         logMessage('transfered ' + sizeof_fmt(read) + ' of ' + sizeof_fmt(size), LOGLEVEL_INFO)
-        createCephSnapshot(args.source)
 
     if (mode['mode'] == BACKUPMODE_INCREMENTAL):
+        compareDeviceSize(sourcePath, destinationPath)
+
         snapshot1 = mode['base_snapshot']
         snapshot2 = createCephSnapshot(args.source)
 
-        delta = getSnapshotDelta(args.source, snapshot1, snapshot2)
+        delta = getCephSnapshotDelta(args.source, snapshot1, snapshot2)
 
         sourcePath = mapCephVolume(args.source + '@' + snapshot2)
-
-        compareDeviceSize(sourcePath, destinationPath)
 
         if (len(delta) == 0):
             logMessage('no change', LOGLEVEL_INFO)
