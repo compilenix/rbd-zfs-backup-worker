@@ -145,7 +145,7 @@ def compareDeviceSize(dev1, dev2):
     sizeDev2 = execRaw('blockdev --getsize64 ' + dev2)
     if (sizeDev1 != sizeDev2):
         raise RuntimeError('size mismatch between source and destination ' + sizeDev1 + ' vs ' + sizeDev2)
-    return sizeDev1
+    return int(sizeDev1)
 
 def cleanup():
     logMessage('cleaning up...', LOGLEVEL_INFO)
