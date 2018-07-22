@@ -170,12 +170,12 @@ try:
             while (True):
                 logMessage('copy block size = ' + sizeof_fmt(COPY_BLOCKSIZE) + ' transfered ' + sizeof_fmt(read) + ' of ' + sizeof_fmt(size), LOGLEVEL_INFO)
                 d = sfh.read(COPY_BLOCKSIZE)
+                if not d:
+                    break # reached EOF
                 read += len(d)
                 dfh.write(d)
                 dfh.flush()
                 os.fsync(dfh.fileno())
-                if (len(d)<COPY_BLOCKSIZE):
-                    break # reached EOF
 
         logMessage('copy finished', LOGLEVEL_INFO)
         logMessage('transfered ' + sizeof_fmt(read) + ' of ' + sizeof_fmt(size), LOGLEVEL_INFO)
@@ -189,12 +189,15 @@ try:
 
         sourcePath = mapCephVolume(args.source + '@' + snapshot2)
 
-        size = compareDeviceSize(sourcePath, destinationPath)
+        compareDeviceSize(sourcePath, destinationPath)
 
         if (len(delta) == 0):
             logMessage('no change', LOGLEVEL_INFO)
 
         totalRead = 0
+        size = 0
+        for block in delta:
+            size += block['length']
 
         with open(sourcePath, 'rb') as sfh, open(destinationPath, 'wb') as dfh:
             for block in delta:
@@ -209,10 +212,7 @@ try:
                 read = 0
 
                 while (read < length):
-                    s = length - read
-                    if (s > COPY_BLOCKSIZE):
-                        s = COPY_BLOCKSIZE
-
+                    s = min(length - read, COPY_BLOCKSIZE)
                     logMessage('copy sub block size = ' + sizeof_fmt(s) + ' transfered ' + sizeof_fmt(read) + ' of ' + sizeof_fmt(size), LOGLEVEL_INFO)
                     d = sfh.read(s)
                     read += len(d)
