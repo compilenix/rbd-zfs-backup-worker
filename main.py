@@ -170,7 +170,7 @@ try:
         snapshot = createCephSnapshot(args.source)
         createZfsVolume(args.destination)
         sourcePath = mapCephVolume(args.source + '@' + snapshot)
-        size = compareDeviceSize(args.source, destinationPath)
+        size = compareDeviceSize(sourcePath, destinationPath)
 
         logMessage('beginning full copy : ' + sourcePath + ' to ' + destinationPath, LOGLEVEL_INFO)
 
@@ -194,7 +194,7 @@ try:
         snapshot1 = mode['base_snapshot']
         snapshot2 = createCephSnapshot(args.source)
         sourcePath = mapCephVolume(args.source + '@' + snapshot2)
-        compareDeviceSize(args.source, destinationPath)
+        compareDeviceSize(sourcePath, destinationPath)
 
         delta = getCephSnapshotDelta(args.source, snapshot1, snapshot2)
 
