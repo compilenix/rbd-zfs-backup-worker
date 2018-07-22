@@ -125,7 +125,7 @@ def createZfsVolume(volume):
 
 def mapCephVolume(volume):
     logMessage('mapping ceph volume ' + volume, LOGLEVEL_INFO)
-    return execRaw('rbd -p ' + args.pool + ' nbd map ' + volume)
+    return execRaw('rbd -p ' + args.pool + ' nbd --read-only map ' + volume)
 
 def unmapCephVolume(dev):
     logMessage('unmapping ceph volume ' + dev, LOGLEVEL_INFO)
