@@ -43,9 +43,9 @@ def logMessage(message, level):
 def sizeof_fmt(num, suffix='B'):
     for unit in ['','Ki','Mi','Gi','Ti','Pi','Ei','Zi']:
         if abs(num) < 1024.0:
-            return "%3.1f%s%s" % (num, unit, suffix)
+            return "%3.1f %s%s" % (num, unit, suffix)
         num /= 1024.0
-    return "%.1f%s%s" % (num, 'Yi', suffix)
+    return "%.1f %s%s" % (num, 'Yi', suffix)
 
 def checkZfsVolumeExistence(path):
     logMessage('checking existence of ZFS volume ' + path, LOGLEVEL_INFO)
@@ -258,7 +258,7 @@ try:
                     d = sfh.read(s)
                     read += len(d)
                     if (args.debug):
-                        logMessage('copy sub block size = ' + str(s) + ' bytes (' + sizeof_fmt(s) + ') transfered ' + read + ' bytes (' + sizeof_fmt(read) + ') of ' + size + ' bytes (' + sizeof_fmt(size) + ')', LOGLEVEL_DEBUG)
+                        logMessage('copy sub block size = ' + str(s) + ' bytes (' + sizeof_fmt(s) + ') transfered ' + str(read) + ' bytes (' + sizeof_fmt(read) + ') of ' + str(size) + ' bytes (' + sizeof_fmt(size) + ')', LOGLEVEL_DEBUG)
                     dfh.write(d)
                     if args.fsync:
                         if (args.debug):
@@ -284,8 +284,8 @@ except RuntimeError as e:
     logMessage('runtime exception ' + str(e), LOGLEVEL_WARN)
 
 except Exception as e:
-    traceback.print_exc()
     logMessage('unexpected exception (probably a bug): ' + str(e), LOGLEVEL_WARN)
+    traceback.print_exc()
 
 finally:
     cleanup()
