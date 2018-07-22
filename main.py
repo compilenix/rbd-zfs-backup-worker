@@ -33,6 +33,12 @@ def logMessage(message, level):
     else:
         print(message)
 
+def sizeof_fmt(num, suffix='B'):
+    for unit in ['','Ki','Mi','Gi','Ti','Pi','Ei','Zi']:
+        if abs(num) < 1024.0:
+            return "%3.1f%s%s" % (num, unit, suffix)
+        num /= 1024.0
+    return "%.1f%s%s" % (num, 'Yi', suffix)
 
 def checkZfsVolumeExistence(path):
     logMessage('checking existence of ZFS volume ' + path, LOGLEVEL_INFO)
@@ -161,7 +167,7 @@ try:
         read = 0
         with open(sourcePath, 'rb') as sfh, open(destinationPath, 'wb') as dfh:
             while (True):
-                logMessage('copy block size = ' + str(COPY_BLOCKSIZE) + ' transfered ' + str(read) + ' bytes', LOGLEVEL_INFO)
+                logMessage('copy block size = ' + sizeof_fmt(COPY_BLOCKSIZE) + ' transfered ' + sizeof_fmt(read), LOGLEVEL_INFO)
                 d = sfh.read(COPY_BLOCKSIZE)
                 read += len(d)
                 dfh.write(d)
@@ -171,7 +177,7 @@ try:
                     break # reached EOF
 
         logMessage('copy finished', LOGLEVEL_INFO)
-        logMessage('transfered ' + str(read) + ' bytes of data', LOGLEVEL_INFO)
+        logMessage('transfered ' + sizeof_fmt(read), LOGLEVEL_INFO)
         createCephSnapshot(args.source)
 
     if (mode['mode'] == BACKUPMODE_INCREMENTAL):
@@ -191,7 +197,7 @@ try:
 
         with open(sourcePath, 'rb') as sfh, open(destinationPath, 'wb') as dfh:
             for block in delta:
-                logMessage('copy block offset = ' + str(block['offset']) + ' length = ' + str(block['length']), LOGLEVEL_INFO)
+                logMessage('copy block offset = ' + sizeof_fmt(block['offset']) + ' length = ' + sizeof_fmt(block['length']), LOGLEVEL_INFO)
 
                 # seek input and output stream to offset position
                 sfh.seek(block['offset'], 0)
@@ -206,7 +212,7 @@ try:
                     if (s > COPY_BLOCKSIZE):
                         s = COPY_BLOCKSIZE
 
-                    logMessage('copy sub block size = ' + str(s), LOGLEVEL_INFO)
+                    logMessage('copy sub block size = ' + sizeof_fmt(s) + ' transfered ' + sizeof_fmt(read), LOGLEVEL_INFO)
                     d = sfh.read(s)
                     read += len(d)
                     dfh.write(d)
@@ -215,7 +221,7 @@ try:
                 totalRead += read
 
         logMessage('copy finished', LOGLEVEL_INFO)
-        logMessage('transfered ' + str(totalRead) + ' bytes of data', LOGLEVEL_INFO)
+        logMessage('transfered ' + sizeof_fmt(totalRead), LOGLEVEL_INFO)
 
         removeCephSnapshot(args.source, snapshot1)
 
