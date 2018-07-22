@@ -154,15 +154,16 @@ try:
     if (mode['mode'] == BACKUPMODE_INITIAL):
         createZfsVolume(args.destination)
         sourcePath = mapCephVolume(args.source)
-
         compareDeviceSize(sourcePath, destinationPath)
 
         logMessage('beginning full copy : ' + sourcePath + ' to ' + destinationPath, LOGLEVEL_INFO)
 
+        read = 0
         with open(sourcePath, 'rb') as sfh, open(destinationPath, 'wb') as dfh:
             while (True):
-                logMessage('copy block', LOGLEVEL_INFO)
+                logMessage('copy block size = ' + str(COPY_BLOCKSIZE) + ' transfered ' + str(read) + ' bytes', LOGLEVEL_INFO)
                 d = sfh.read(COPY_BLOCKSIZE)
+                read += len(d)
                 dfh.write(d)
                 dfh.flush()
                 os.fsync(dfh.fileno())
@@ -170,6 +171,7 @@ try:
                     break # reached EOF
 
         logMessage('copy finished', LOGLEVEL_INFO)
+        logMessage('transfered ' + str(read) + ' bytes of data', LOGLEVEL_INFO)
         createCephSnapshot(args.source)
 
     if (mode['mode'] == BACKUPMODE_INCREMENTAL):
@@ -200,11 +202,11 @@ try:
                 read = 0
 
                 while (read < length):
-                    logMessage('copy sub block', LOGLEVEL_INFO)
                     s = length - read
                     if (s > COPY_BLOCKSIZE):
                         s = COPY_BLOCKSIZE
 
+                    logMessage('copy sub block size = ' + str(s), LOGLEVEL_INFO)
                     d = sfh.read(s)
                     read += len(d)
                     dfh.write(d)
