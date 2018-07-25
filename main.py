@@ -10,6 +10,7 @@ parser.add_argument('-s', '--source', action="store", dest='source', help='the c
 parser.add_argument('-d', '--destination', action="store", dest='destination', help='the zsf device to write into (without /dev/zvol)', type=str, required=True)
 parser.add_argument('-p', '--pool', action="store", dest='pool', help='the ceph storage pool', type=str, required=False, default='hdd')
 parser.add_argument('-fsync', '--flush-sync', action="store_true", dest='fsync', help='transfers ("flushes") all modified data to the disk device', required=False, default=False)
+parser.add_argument('-w', '--whole-object', action="store_true", dest='wholeObject', help='do not diff for intra-object deltas. Dramatically improves diff performance but may result in larger delta backup', required=False, default=True)
 
 args = parser.parse_args()
 
@@ -151,6 +152,8 @@ def unmapCephVolume(dev):
     return execRaw('rbd nbd unmap ' + dev)
 
 def getCephSnapshotDelta(volume, snapshot1, snapshot2):
+    if args.wholeObject:
+        return execParseJson('rbd -p ' + args.pool + ' --format json diff --whole-object ' + volume + ' --from-snap ' + snapshot1 + ' --snap ' + snapshot2)
     return execParseJson('rbd -p ' + args.pool + ' --format json diff ' + volume + ' --from-snap ' + snapshot1 + ' --snap ' + snapshot2)
 
 def compareDeviceSize(dev1, dev2):
