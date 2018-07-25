@@ -202,8 +202,7 @@ try:
                 read += len(d)
                 dfh.write(d)
                 if args.fsync:
-                    if (args.debug):
-                        logMessage('flush and fsync fd ' + str(dfh.fileno()), LOGLEVEL_DEBUG)
+                    logMessage('flush and fsync fd ' + str(dfh.fileno()), LOGLEVEL_DEBUG)
                     dfh.flush()
                     os.fsync(dfh.fileno())
                 buffersTransfered += 1
@@ -248,11 +247,9 @@ try:
                 read = 0
 
                 # seek input and output stream to offset position
-                if (args.debug):
-                    logMessage('seeking ceph block device to offset ' + str(block['offset']) + ' bytes (' + sizeof_fmt(block['offset']) + ')', LOGLEVEL_DEBUG)
+                logMessage('seeking ceph block device to offset ' + str(block['offset']) + ' bytes (' + sizeof_fmt(block['offset']) + ')', LOGLEVEL_DEBUG)
                 sfh.seek(block['offset'], 0)
-                if (args.debug):
-                    logMessage('seeking zfs block device to offset ' + str(block['offset']) + ' bytes (' + sizeof_fmt(block['offset']) + ')', LOGLEVEL_DEBUG)
+                logMessage('seeking zfs block device to offset ' + str(block['offset']) + ' bytes (' + sizeof_fmt(block['offset']) + ')', LOGLEVEL_DEBUG)
                 dfh.seek(block['offset'], 0)
 
                 while (read < length):
@@ -263,8 +260,7 @@ try:
                         logMessage('transfered ' + str(read) + ' bytes (' + sizeof_fmt(read) + ') of block size ' + str(length) + ' bytes (' + sizeof_fmt(length) + '). Copy buffer size = ' + str(s) + ' bytes (' + sizeof_fmt(s) + ') ', LOGLEVEL_DEBUG)
                     dfh.write(d)
                     if args.fsync:
-                        if (args.debug):
-                            logMessage('flush and fsync fd ' + str(dfh.fileno()), LOGLEVEL_DEBUG)
+                        logMessage('flush and fsync fd ' + str(dfh.fileno()), LOGLEVEL_DEBUG)
                         dfh.flush()
                         os.fsync(dfh.fileno())
                 totalRead += read
