@@ -185,6 +185,7 @@ try:
         logMessage('beginning full copy from ' + sourcePath + ' to ' + destinationPath, LOGLEVEL_INFO)
 
         read = 0
+        buffersTransfered = 0
         with open(sourcePath, 'rb') as sfh, open(destinationPath, 'wb') as dfh:
             if (args.debug):
                 logMessage('start copy of ' + str(size) + ' bytes (' + sizeof_fmt(size) + ') with buffer size ' + str(COPY_BLOCKSIZE) + ' (' + sizeof_fmt(COPY_BLOCKSIZE) + ')', LOGLEVEL_DEBUG)
@@ -192,9 +193,9 @@ try:
                 logMessage('start copy of ' + sizeof_fmt(size) + ' with buffer size ' + sizeof_fmt(COPY_BLOCKSIZE), LOGLEVEL_INFO)
             while (True):
                 if (args.debug):
-                    logMessage('transfered ' + str(read) + ' bytes (' + sizeof_fmt(read) + ') of ' + str(size) + ' bytes (' + sizeof_fmt(size) + ')', LOGLEVEL_DEBUG)
+                    logMessage('transfered ' + str(buffersTransfered) + ' buffers. ' + str(read) + ' bytes (' + sizeof_fmt(read) + ') of ' + str(size) + ' bytes (' + sizeof_fmt(size) + ')', LOGLEVEL_DEBUG)
                 else:
-                    logMessage('transfered ' + sizeof_fmt(read) + ' of ' + sizeof_fmt(size), LOGLEVEL_INFO)
+                    logMessage('transfered ' + str(buffersTransfered) + ' buffers. ' + sizeof_fmt(read) + ' of ' + sizeof_fmt(size), LOGLEVEL_INFO)
                 d = sfh.read(COPY_BLOCKSIZE)
                 if not d:
                     break # reached EOF
@@ -205,12 +206,13 @@ try:
                         logMessage('flush and fsync fd ' + str(dfh.fileno()), LOGLEVEL_DEBUG)
                     dfh.flush()
                     os.fsync(dfh.fileno())
+                buffersTransfered += 1
 
         logMessage('copy finished', LOGLEVEL_INFO)
         if (args.debug):
-            logMessage('transfered ' + str(read) + ' bytes (' + sizeof_fmt(read) + ') of ' + str(size) + ' bytes (' + sizeof_fmt(size) + ')', LOGLEVEL_DEBUG)
+            logMessage('transfered ' + str(buffersTransfered) + ' buffers. ' + str(read) + ' bytes (' + sizeof_fmt(read) + ') of ' + str(size) + ' bytes (' + sizeof_fmt(size) + ')', LOGLEVEL_DEBUG)
         else:
-            logMessage('transfered ' + sizeof_fmt(read) + ' of ' + sizeof_fmt(size), LOGLEVEL_INFO)
+            logMessage('transfered ' + str(buffersTransfered) + ' buffers. ' + sizeof_fmt(read) + ' of ' + sizeof_fmt(size), LOGLEVEL_INFO)
         createZfsSnapshot(args.destination)
 
     if (mode['mode'] == BACKUPMODE_INCREMENTAL):
@@ -226,6 +228,8 @@ try:
 
         totalRead = 0
         size = 0
+        blocksTransfered = 0
+        blocksTotal = len(delta)
         for block in delta:
             size += block['length']
 
@@ -236,9 +240,9 @@ try:
                 logMessage('start copy of ' + str(len(delta)) + ' ceph objects resulting in ' + sizeof_fmt(size), LOGLEVEL_INFO)
             for block in delta:
                 if (args.debug):
-                    logMessage('currently transfered ' + str(totalRead) + ' bytes (' + sizeof_fmt(totalRead) + ') of ' + str(size) + ' bytes (' + sizeof_fmt(size) + '). copy delta block with offset = ' + str(block['offset']) + ' bytes (' + sizeof_fmt(block['offset']) + ') and length = ' + str(block['length']) + ' bytes (' + sizeof_fmt(block['length']), LOGLEVEL_DEBUG)
+                    logMessage('transfered ' + str(blocksTransfered) + ' blocks out of ' + str(blocksTotal) + ' blocks and ' + str(totalRead) + ' bytes (' + sizeof_fmt(totalRead) + ') of ' + str(size) + ' bytes (' + sizeof_fmt(size) + '). copy delta block with offset = ' + str(block['offset']) + ' bytes (' + sizeof_fmt(block['offset']) + ') and length = ' + str(block['length']) + ' bytes (' + sizeof_fmt(block['length']), LOGLEVEL_DEBUG)
                 else:
-                    logMessage('currently transfered ' + sizeof_fmt(totalRead) + ' of ' + sizeof_fmt(size) + '. copy delta block with offset = ' + sizeof_fmt(block['offset']) + ' and length = ' + sizeof_fmt(block['length']), LOGLEVEL_INFO)
+                    logMessage('transfered ' + str(blocksTransfered) + ' blocks out of ' + str(blocksTotal) + ' blocks and ' + sizeof_fmt(totalRead) + ' of ' + sizeof_fmt(size) + '. copy delta block with offset = ' + sizeof_fmt(block['offset']) + ' and length = ' + sizeof_fmt(block['length']), LOGLEVEL_INFO)
 
                 length = block['length']
                 read = 0
@@ -256,7 +260,7 @@ try:
                     d = sfh.read(s)
                     read += len(d)
                     if (args.debug):
-                        logMessage('currently ' + str(read) + ' bytes (' + sizeof_fmt(read) + ') of block size ' + str(length) + ' bytes (' + sizeof_fmt(length) + ') transfered. Copy buffer size = ' + str(s) + ' bytes (' + sizeof_fmt(s) + ') ', LOGLEVEL_DEBUG)
+                        logMessage('transfered ' + str(read) + ' bytes (' + sizeof_fmt(read) + ') of block size ' + str(length) + ' bytes (' + sizeof_fmt(length) + '). Copy buffer size = ' + str(s) + ' bytes (' + sizeof_fmt(s) + ') ', LOGLEVEL_DEBUG)
                     dfh.write(d)
                     if args.fsync:
                         if (args.debug):
@@ -264,6 +268,7 @@ try:
                         dfh.flush()
                         os.fsync(dfh.fileno())
                 totalRead += read
+                blocksTransfered += 1
 
         logMessage('copy finished', LOGLEVEL_INFO)
         if (args.debug):
