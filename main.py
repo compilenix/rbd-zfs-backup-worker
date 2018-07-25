@@ -272,9 +272,9 @@ try:
 
         logMessage('copy finished', LOGLEVEL_INFO)
         if (args.debug):
-            logMessage('transfered ' + str(totalRead) + ' bytes (' + sizeof_fmt(totalRead) + ') of ' + str(size) + ' bytes (' + sizeof_fmt(size) + ')', LOGLEVEL_DEBUG)
+            logMessage('transfered ' + str(blocksTransfered) + ' blocks out of ' + str(blocksTotal) + ' blocks and ' + str(totalRead) + ' bytes (' + sizeof_fmt(totalRead) + ') of ' + str(size) + ' bytes (' + sizeof_fmt(size) + ')', LOGLEVEL_DEBUG)
         else:
-            logMessage('transfered ' + sizeof_fmt(totalRead) + ' of ' + sizeof_fmt(size), LOGLEVEL_INFO)
+            logMessage('transfered ' + str(blocksTransfered) + ' blocks out of ' + str(blocksTotal) + ' blocks and ' + sizeof_fmt(totalRead) + ' of ' + sizeof_fmt(size), LOGLEVEL_INFO)
 
         createZfsSnapshot(args.destination)
         removeCephSnapshot(args.source, snapshot1)
