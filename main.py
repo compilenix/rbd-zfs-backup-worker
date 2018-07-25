@@ -30,13 +30,8 @@ destinationPath = None
 sourcePath = None
 
 def logMessage(message, level):
-    # filter info messages if verbose output is not enabled
-    if ((level <= LOGLEVEL_INFO) and not args.verbose and not args.debug):
-        return
-    if ((level < LOGLEVEL_INFO) and not args.debug):
-        return
-    if ((level == LOGLEVEL_INFO) and not args.verbose or not args.debug):
-        return
+    if level <= LOGLEVEL_INFO and not (args.verbose or args.debug): return
+    if level == LOGLEVEL_DEBUG and not args.debug: return
     else:
         print(message)
 
