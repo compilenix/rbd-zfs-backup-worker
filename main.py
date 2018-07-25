@@ -233,9 +233,9 @@ try:
                 logMessage('start copy of ' + str(len(delta)) + ' ceph objects resulting in ' + sizeof_fmt(size), LOGLEVEL_INFO)
             for block in delta:
                 if (args.debug):
-                    logMessage('copy delta block with offset = ' + str(block['offset']) + ' bytes (' + sizeof_fmt(block['offset']) + ') and length = ' + str(block['length']) + ' bytes (' + sizeof_fmt(block['length']) + '). currently transfered ' + str(totalRead) + ' bytes (' + sizeof_fmt(totalRead) + ') of ' + str(size) + ' bytes (' + sizeof_fmt(size) + ')', LOGLEVEL_DEBUG)
+                    logMessage('currently transfered ' + str(totalRead) + ' bytes (' + sizeof_fmt(totalRead) + ') of ' + str(size) + ' bytes (' + sizeof_fmt(size) + '). copy delta block with offset = ' + str(block['offset']) + ' bytes (' + sizeof_fmt(block['offset']) + ') and length = ' + str(block['length']) + ' bytes (' + sizeof_fmt(block['length']), LOGLEVEL_DEBUG)
                 else:
-                    logMessage('copy delta block with offset = ' + sizeof_fmt(block['offset']) + ' and length = ' + sizeof_fmt(block['length']) + '. currently transfered ' + sizeof_fmt(totalRead) + ' of ' + sizeof_fmt(size), LOGLEVEL_INFO)
+                    logMessage('currently transfered ' + sizeof_fmt(totalRead) + ' of ' + sizeof_fmt(size) + '. copy delta block with offset = ' + sizeof_fmt(block['offset']) + ' and length = ' + sizeof_fmt(block['length']), LOGLEVEL_INFO)
 
                 length = block['length']
                 read = 0
@@ -253,7 +253,7 @@ try:
                     d = sfh.read(s)
                     read += len(d)
                     if (args.debug):
-                        logMessage('copy buffer size = ' + str(s) + ' bytes (' + sizeof_fmt(s) + ') currently ' + str(read) + ' bytes (' + sizeof_fmt(read) + ') of block size ' + str(length) + ' bytes (' + sizeof_fmt(length) + ') transfered', LOGLEVEL_DEBUG)
+                        logMessage('currently ' + str(read) + ' bytes (' + sizeof_fmt(read) + ') of block size ' + str(length) + ' bytes (' + sizeof_fmt(length) + ') transfered. Copy buffer size = ' + str(s) + ' bytes (' + sizeof_fmt(s) + ') ', LOGLEVEL_DEBUG)
                     dfh.write(d)
                     if args.fsync:
                         if (args.debug):
