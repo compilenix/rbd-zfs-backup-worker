@@ -1,4 +1,4 @@
-import os, sys, argparse, stat, subprocess, json, random, traceback
+import os, sys, argparse, stat, subprocess, json, random, traceback, re, time
 
 import argparse
 
@@ -11,6 +11,8 @@ parser.add_argument('-d', '--destination', action="store", dest='destination', h
 parser.add_argument('-p', '--pool', action="store", dest='pool', help='the ceph storage pool', type=str, required=False, default='hdd')
 parser.add_argument('-fsync', '--flush-sync', action="store_true", dest='fsync', help='transfers ("flushes") all modified data to the disk device', required=False, default=False)
 parser.add_argument('-w', '--whole-object', action="store_true", dest='wholeObject', help='do not diff for intra-object deltas. Dramatically improves diff performance but may result in larger delta backup', required=False, default=True)
+parser.add_argument('-healty', '--wait-until-healthy', action="store_true", dest='waitHealthy', help='wait until cluster is healthy', required=False, default=True)
+parser.add_argument('-no-scrub', '--no-scrubbing', action="store_true", dest='noScrubbing', help='wait for scrubbing to finnish and disable scrubbing (does re-enable scrubbing automatically). This implies --wait-until-healthy', required=False, default=True)
 
 args = parser.parse_args()
 
@@ -165,16 +167,45 @@ def compareDeviceSize(dev1, dev2):
         raise RuntimeError('size mismatch between source and destination ' + sizeDev1 + ' vs ' + sizeDev2)
     return int(sizeDev1)
 
+def setCephScrubbingEnable():
+    logMessage('enable ceph scrubbing', LOGLEVEL_INFO)
+    execRaw('ceph osd unset nodeep-scrub')
+    execRaw('ceph osd unset noscrub')
+
+def setCephScrubbingDisable():
+    logMessage('disable ceph scrubbing', LOGLEVEL_INFO)
+    execRaw('ceph osd set nodeep-scrub')
+    execRaw('ceph osd set noscrub')
+
+def waitForCephHealthy():
+    while (execRaw('ceph health detail') != 'HEALTH_OK'):
+        logMessage('waiting for ceph cluster to become healthy', LOGLEVEL_INFO)
+        time.sleep(1)
+
+def waitForCephScrubbingFinnish():
+    pattern = re.compile("scrubbing")
+    while (pattern.search(execRaw('ceph status'))):
+        logMessage('waiting for ceph cluster to complete scrubbing', LOGLEVEL_INFO)
+        time.sleep(1)
+
 def cleanup():
     logMessage('cleaning up...', LOGLEVEL_INFO)
     if (sourcePath != None):
         unmapCephVolume(sourcePath)
     else:
         logMessage('no ZFS device mapped', LOGLEVEL_INFO)
+    if (args.noScrubbing):
+        setCephScrubbingEnable()
 
 try:
     mode = getBackupMode()
     destinationPath = ZFS_DEV_PATH + args.destination
+
+    if (args.waitHealthy or args.noScrubbing):
+        waitForCephHealthy()
+    if (args.noScrubbing):
+        setCephScrubbingDisable()
+        waitForCephScrubbingFinnish()
 
     if (mode['mode'] == BACKUPMODE_INITIAL):
         snapshot = createCephSnapshot(args.source)
