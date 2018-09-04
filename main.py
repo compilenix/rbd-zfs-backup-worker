@@ -178,7 +178,7 @@ def setCephScrubbingDisable():
     execRaw('ceph osd set noscrub')
 
 def waitForCephHealthy():
-    while (execRaw('ceph health detail') != 'HEALTH_OK'):
+    while (execRaw('ceph health detail').startswith('HEALTH_ERR')):
         logMessage('waiting for ceph cluster to become healthy', LOGLEVEL_INFO)
         time.sleep(1)
 
