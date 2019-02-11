@@ -133,15 +133,15 @@ def createZfsSnapshot(volume):
     if (code != 0):
         raise RuntimeError('error creating zfs snapshot code: ' + str(code))
     logMessage('zfs snapshot created ' + name, LOGLEVEL_INFO)
+    return name
 
 def getCephVolumeProperties(volume):
     return execParseJson('rbd -p ' + args.pool + ' --format json info ' + volume)
 
-def createZfsVolume(volume):
+def createZfsVolume(volume, size):
     logMessage('creating ZFS volume ' + volume, LOGLEVEL_INFO)
-    props = getCephVolumeProperties(args.source)
-    logMessage('exec command "zfs create -V' + str(props['size']) + ' volume"', LOGLEVEL_INFO)
-    code = subprocess.call(['zfs', 'create', '-V'+str(props['size']), volume])
+    logMessage('exec command "zfs create -V' + str(size) + ' ' + volume + '"', LOGLEVEL_INFO)
+    code = subprocess.call(['zfs', 'create', '-V'+str(size), volume])
     if (code != 0):
         raise RuntimeError('error creating ZFS volume code: ' + str(code))
 
@@ -209,7 +209,7 @@ try:
 
     if (mode['mode'] == BACKUPMODE_INITIAL):
         snapshot = createCephSnapshot(args.source)
-        createZfsVolume(args.destination)
+        createZfsVolume(args.destination, getCephVolumeProperties(args.source)['size'])
         sourcePath = mapCephVolume(args.source + '@' + snapshot)
         size = compareDeviceSize(sourcePath, destinationPath)
 
