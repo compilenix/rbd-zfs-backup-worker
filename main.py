@@ -8,11 +8,11 @@ parser.add_argument('-v', '--verbose', action="store_true", dest='verbose', defa
 parser.add_argument('-vv', '--debug', action="store_true", dest='debug', default=False, help='print debug output')
 parser.add_argument('-s', '--source', action="store", dest='source', help='the ceph device to backup', type=str, required=True)
 parser.add_argument('-d', '--destination', action="store", dest='destination', help='the zsf device to write into (without /dev/zvol)', type=str, required=True)
-parser.add_argument('-p', '--pool', action="store", dest='pool', help='the ceph storage pool', type=str, required=False, default='hdd')
+parser.add_argument('-p', '--pool', action="store", dest='pool', help='the ceph storage pool', type=str, required=False, default='rbd')
 parser.add_argument('-fsync', '--flush-sync', action="store_true", dest='fsync', help='transfers ("flushes") all modified data to the disk device', required=False, default=False)
 parser.add_argument('-w', '--whole-object', action="store_true", dest='wholeObject', help='do not diff for intra-object deltas. Dramatically improves diff performance but may result in larger delta backup', required=False, default=True)
 parser.add_argument('-healty', '--wait-until-healthy', action="store_true", dest='waitHealthy', help='wait until cluster is healthy', required=False, default=True)
-parser.add_argument('-no-scrub', '--no-scrubbing', action="store_true", dest='noScrubbing', help='wait for scrubbing to finnish and disable scrubbing (does re-enable scrubbing automatically). This implies --wait-until-healthy', required=False, default=True)
+parser.add_argument('-no-scrub', '--no-scrubbing', action="store_true", dest='noScrubbing', help='wait for scrubbing to finnish and disable scrubbing (does re-enable scrubbing automatically). This implies --wait-until-healthy', required=False, default=False)
 
 args = parser.parse_args()
 
