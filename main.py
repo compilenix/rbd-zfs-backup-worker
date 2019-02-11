@@ -114,8 +114,8 @@ def getBackupMode():
 def createCephSnapshot(volume):
     logMessage('creating ceph snapshot for volume ' + volume, LOGLEVEL_INFO)
     name = INTERNAL_SNAPSHOT_PREFIX + ''.join([random.choice('0123456789abcdef') for _ in range(8)])
-    logMessage('exec command "rbd -p hdd snap create ' + volume + '@' + name + '"', LOGLEVEL_INFO)
-    code = subprocess.call(['rbd', '-p', 'hdd', 'snap', 'create', volume + '@' + name])
+    logMessage('exec command "rbd -p ' + args.pool + ' snap create ' + volume + '@' + name + '"', LOGLEVEL_INFO)
+    code = subprocess.call(['rbd', '-p', args.pool, 'snap', 'create', volume + '@' + name])
     if (code != 0):
         raise RuntimeError('error creating ceph snapshot code: ' + str(code))
     logMessage('ceph snapshot created ' + name, LOGLEVEL_INFO)
@@ -223,10 +223,6 @@ try:
             else:
                 logMessage('start copy of ' + sizeof_fmt(size) + ' with buffer size ' + sizeof_fmt(COPY_BLOCKSIZE), LOGLEVEL_INFO)
             while (True):
-                if (args.debug):
-                    logMessage('transfered ' + str(buffersTransfered) + ' buffers. ' + str(read) + ' bytes (' + sizeof_fmt(read) + ') of ' + str(size) + ' bytes (' + sizeof_fmt(size) + ')', LOGLEVEL_DEBUG)
-                else:
-                    logMessage('transfered ' + str(buffersTransfered) + ' buffers. ' + sizeof_fmt(read) + ' of ' + sizeof_fmt(size), LOGLEVEL_INFO)
                 d = sfh.read(COPY_BLOCKSIZE)
                 if not d:
                     break # reached EOF
@@ -237,6 +233,10 @@ try:
                     dfh.flush()
                     os.fsync(dfh.fileno())
                 buffersTransfered += 1
+                if (args.debug):
+                    logMessage('transfered ' + str(buffersTransfered) + ' buffers. ' + str(read) + ' bytes (' + sizeof_fmt(read) + ') of ' + str(size) + ' bytes (' + sizeof_fmt(size) + ')', LOGLEVEL_DEBUG)
+                else:
+                    logMessage('transfered ' + str(buffersTransfered) + ' buffers. ' + sizeof_fmt(read) + ' of ' + sizeof_fmt(size), LOGLEVEL_INFO)
 
         logMessage('copy finished', LOGLEVEL_INFO)
         if (args.debug):
@@ -269,11 +269,6 @@ try:
             else:
                 logMessage('start copy of ' + str(len(delta)) + ' ceph objects resulting in ' + sizeof_fmt(size), LOGLEVEL_INFO)
             for block in delta:
-                if (args.debug):
-                    logMessage('transfered ' + str(blocksTransfered) + ' blocks out of ' + str(blocksTotal) + ' blocks and ' + str(totalRead) + ' bytes (' + sizeof_fmt(totalRead) + ') of ' + str(size) + ' bytes (' + sizeof_fmt(size) + '). copy delta block with offset = ' + str(block['offset']) + ' bytes (' + sizeof_fmt(block['offset']) + ') and length = ' + str(block['length']) + ' bytes (' + sizeof_fmt(block['length']), LOGLEVEL_DEBUG)
-                else:
-                    logMessage('transfered ' + str(blocksTransfered) + ' blocks out of ' + str(blocksTotal) + ' blocks and ' + sizeof_fmt(totalRead) + ' of ' + sizeof_fmt(size) + '. copy delta block with offset = ' + sizeof_fmt(block['offset']) + ' and length = ' + sizeof_fmt(block['length']), LOGLEVEL_INFO)
-
                 length = block['length']
                 read = 0
 
@@ -296,6 +291,10 @@ try:
                         os.fsync(dfh.fileno())
                 totalRead += read
                 blocksTransfered += 1
+                if (args.debug):
+                    logMessage('transfered ' + str(blocksTransfered) + ' blocks out of ' + str(blocksTotal) + ' blocks and ' + str(totalRead) + ' bytes (' + sizeof_fmt(totalRead) + ') of ' + str(size) + ' bytes (' + sizeof_fmt(size) + '). copy delta block with offset = ' + str(block['offset']) + ' bytes (' + sizeof_fmt(block['offset']) + ') and length = ' + str(block['length']) + ' bytes (' + sizeof_fmt(block['length']), LOGLEVEL_DEBUG)
+                else:
+                    logMessage('transfered ' + str(blocksTransfered) + ' blocks out of ' + str(blocksTotal) + ' blocks and ' + sizeof_fmt(totalRead) + ' of ' + sizeof_fmt(size) + '. copy delta block with offset = ' + sizeof_fmt(block['offset']) + ' and length = ' + sizeof_fmt(block['length']), LOGLEVEL_INFO)
 
         logMessage('copy finished', LOGLEVEL_INFO)
         if (args.debug):
