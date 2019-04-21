@@ -1,4 +1,5 @@
-import os, sys, argparse, stat, subprocess, json, random, traceback, re, time
+#!/usr/bin/python3 -u
+import os, sys, argparse, stat, subprocess, json, random, traceback, re, time, signal
 
 import argparse
 
@@ -31,6 +32,16 @@ COPY_BLOCKSIZE = (2**20) * 4 # 4MB
 
 destinationPath = None
 sourcePath = None
+
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
 
 def logMessage(message, level):
     if level <= LOGLEVEL_INFO and not (args.verbose or args.debug): return
@@ -98,13 +109,13 @@ def getBackupMode():
     previousSnapshotCount = countPreviousCephSnapsots(args.source)
 
     if (previousSnapshotCount > 1):
-        raise RuntimeError('inconsistent state, more than one old snapshot for volume ' + args.source)
+        raise RuntimeError('inconsistent state, more than one old snapshot for volume ' + args.source + ' (rbd -p ' + args.pool + ' snap ls ' + args.source + ')')
 
     if (previousSnapshotCount == 1 and not targetExsists):
-        raise RuntimeError('inconsistent state, source snapshot found but target does not exist ' + args.destination)
+        raise RuntimeError('inconsistent state, source snapshot found but target does not exist ' + args.destination + ' (rbd -p ' + args.pool + ' snap ls ' + args.source + ')')
 
     if (previousSnapshotCount == 0 and targetExsists):
-        raise RuntimeError('inconsistent state, source snapshot not found but target does exist')
+        raise RuntimeError('inconsistent state, source snapshot not found but target does exist' + ' (zfs destroy -R ' + args.destination + ')')
 
     if (previousSnapshotCount == 0 and not targetExsists):
         return {'mode': BACKUPMODE_INITIAL}
@@ -119,7 +130,6 @@ def createCephSnapshot(volume):
     if (code != 0):
         raise RuntimeError('error creating ceph snapshot code: ' + str(code))
     logMessage('ceph snapshot created ' + name, LOGLEVEL_INFO)
-
     return name
 
 def removeCephSnapshot(volume, snapshot):
@@ -144,6 +154,13 @@ def createZfsVolume(volume, size):
     code = subprocess.call(['zfs', 'create', '-V'+str(size), volume])
     if (code != 0):
         raise RuntimeError('error creating ZFS volume code: ' + str(code))
+
+def createZfsDataSet(dataset):
+    logMessage('creating ZFS DataSet ' + dataset, LOGLEVEL_INFO)
+    logMessage('exec command "zfs create ' + dataset + '"', LOGLEVEL_INFO)
+    code = subprocess.call(['zfs', 'create', dataset])
+    if (code != 0):
+        raise RuntimeError('error creating ZFS DataSet code: ' + str(code))
 
 def mapCephVolume(volume):
     logMessage('mapping ceph volume ' + volume, LOGLEVEL_INFO)
@@ -188,7 +205,7 @@ def waitForCephScrubbingFinnish():
         logMessage('waiting for ceph cluster to complete scrubbing', LOGLEVEL_INFO)
         time.sleep(1)
 
-def cleanup():
+def cleanup(arg1 = None, arg2 = None):
     logMessage('cleaning up...', LOGLEVEL_INFO)
     if (sourcePath != None):
         unmapCephVolume(sourcePath)
@@ -198,6 +215,9 @@ def cleanup():
         setCephScrubbingEnable()
 
 try:
+    signal.signal(signal.SIGINT, cleanup)
+    signal.signal(signal.SIGTERM, cleanup)
+
     mode = getBackupMode()
     destinationPath = ZFS_DEV_PATH + args.destination
 
@@ -305,15 +325,17 @@ try:
         createZfsSnapshot(args.destination)
         removeCephSnapshot(args.source, snapshot1)
 
+    logMessage(bcolors.OKGREEN + 'Done with ' + args.source + ' -> ' + args.destination + bcolors.ENDC, LOGLEVEL_INFO)
+
 
 except KeyboardInterrupt:
-    logMessage('Interrupt, terminating...', LOGLEVEL_WARN)
+    logMessage(bcolors.WARNING + 'Interrupt, terminating...' + bcolors.ENDC, LOGLEVEL_WARN)
 
 except RuntimeError as e:
-    logMessage('runtime exception ' + str(e), LOGLEVEL_WARN)
+    logMessage(bcolors.FAIL + 'runtime exception ' + str(e) + bcolors.ENDC, LOGLEVEL_WARN)
 
 except Exception as e:
-    logMessage('unexpected exception (probably a bug): ' + str(e), LOGLEVEL_WARN)
+    logMessage(bcolors.FAIL + 'unexpected exception (probably a bug): ' + str(e) + bcolors.ENDC, LOGLEVEL_WARN)
     traceback.print_exc()
 
 finally:
